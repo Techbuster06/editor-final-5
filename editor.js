@@ -1,7 +1,11 @@
 let selectedNode = null;
+let imageTransformer = null;
 
 document.addEventListener("keydown", function(e) {
     if ((e.key === "Delete" || e.key === "Backspace") && selectedNode) {
+        if (imageTransformer) {
+            imageTransformer.nodes([]);
+        }
         selectedNode.destroy();
         selectedNode = null;
         layer.draw();
@@ -50,20 +54,23 @@ function loadTemplateFromURL(url) {
         layer.add(image);
         image.draggable(true);
 
-        const tr = new Konva.Transformer({
-            nodes: [image],
-            rotateEnabled: true,
-            enabledAnchors: [
-                "top-left", "top-right",
-                "bottom-left", "bottom-right"
-            ]
-        });
-
-        layer.add(tr);
+        if (imageTransformer) {
+            imageTransformer.nodes([image]);
+        } else {
+            imageTransformer = new Konva.Transformer({
+                nodes: [image],
+                rotateEnabled: true,
+                enabledAnchors: [
+                    "top-left", "top-right",
+                    "bottom-left", "bottom-right"
+                ]
+            });
+            layer.add(imageTransformer);
+        }
 
         image.on("click", () => {
             selectedNode = image;
-            tr.nodes([image]);
+            imageTransformer.nodes([image]);
             layer.draw();
         });
 
@@ -999,11 +1006,6 @@ function initEditor() {
     // --- Core Initialization ---
     initKonva(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     setupEventListeners();
-    // 💡 ADD THE NEW TEMPLATES INITIALIZATION HERE 💡
-    if (typeof TemplatesSidebar !== 'undefined' && typeof TemplatesSidebar.initTemplatesSidebar === 'function') {
-        TemplatesSidebar.initTemplatesSidebar();
-    }
-    // 💡 END OF NEW CALL 💡
 
     // =========================================================
     // 2. 🎨 Event Listeners Setup
@@ -1255,115 +1257,3 @@ function initEditor() {
     } // End of setupEventListeners
 
 } // End of initEditor
-
-const TemplatesSidebar = (function () {
-  const basePath = 'assets/templates/';
-
-  // FIXED: Standardized filenames
-  const carouselFiles = [
-    'carousel1.png',
-    'carousel2.png',
-    'carousel3.png',
-    'carousel4.png'
-  ];
-
-  const carouselMockup = 'carousel_mockup.jpg';
-
-  const generalFiles = [
-    'event_promo_2.jpg',
-    'product_announcement.jpg',
-    'quote_graphic.jpg'
-  ];
-
-  const videoFiles = [
-    'video_ad_bg.jpg'
-  ];
-
-  function mkThumbItem(filename, label) {
-    const btn = document.createElement('button');
-    btn.className = 'template-thumb';
-    btn.type = 'button';
-    btn.setAttribute('aria-label', label || filename);
-    btn.tabIndex = 0;
-
-    const img = document.createElement('img');
-    img.alt = label || filename;
-    img.src = basePath + filename;
-    btn.appendChild(img);
-
-    const lbl = document.createElement('div');
-    lbl.className = 'thumb-label';
-    lbl.textContent = label || filename;
-    btn.appendChild(lbl);
-
-    const dispatchApplyEvent = () => {
-      document.dispatchEvent(
-        new CustomEvent('template:apply', {
-          detail: { url: basePath + filename }
-        })
-      );
-    };
-
-    btn.addEventListener('click', dispatchApplyEvent);
-
-    btn.addEventListener('keyup', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        dispatchApplyEvent();
-      }
-    });
-
-    return btn;
-  }
-
-  function init() {
-    const container = document.getElementById('templates-section');
-    if (!container) {
-      console.warn(
-        'templates-sidebar: #templates-section not found. Ensure the HTML snippet exists.'
-      );
-      return;
-    }
-
-    // Set carousel main preview (if present)
-    const mainPreview = container.querySelector('.carousel-main-preview');
-    if (mainPreview) {
-      mainPreview.src = basePath + carouselMockup;
-    }
-
-    // Populate carousel
-    const thumbsCarousel = container.querySelector('.thumbnails-carousel');
-    if (thumbsCarousel) {
-      carouselFiles.forEach((f, idx) => {
-        thumbsCarousel.appendChild(mkThumbItem(f, `Carousel ${idx + 1}`));
-      });
-    }
-
-    // Populate general templates
-    const thumbsGeneral = container.querySelector('.thumbnails-general');
-    if (thumbsGeneral) {
-      generalFiles.forEach((f, idx) => {
-        thumbsGeneral.appendChild(mkThumbItem(f, `General ${idx + 1}`));
-      });
-    }
-
-    // Populate video templates
-    const thumbsVideo = container.querySelector('.thumbnails-video');
-    if (thumbsVideo) {
-      videoFiles.forEach((f, idx) => {
-        thumbsVideo.appendChild(mkThumbItem(f, `Video ${idx + 1}`));
-      });
-    }
-
-    // Allow programmatic open
-    document.addEventListener('templates:open', () => {
-      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }
-
-  return {
-    initTemplatesSidebar: init
-  };
-})();
-
-// Initialize the sidebar templates
-TemplatesSidebar.initTemplatesSidebar();
