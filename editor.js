@@ -1,3 +1,17 @@
+let selectedNode = null;
+let imageTransformer = null;
+
+document.addEventListener("keydown", function(e) {
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedNode) {
+        if (imageTransformer) {
+            imageTransformer.nodes([]);
+        }
+        selectedNode.destroy();
+        selectedNode = null;
+        layer.draw();
+    }
+});
+
 // --- Jules injected template loader ------------------------------------------------
 function loadTemplateFromURL(url) {
     console.log(`Loading template from: ${url}`);
@@ -28,7 +42,6 @@ function loadTemplateFromURL(url) {
             height: newHeight,
             x: (maxWidth - newWidth) / 2,
             y: (maxHeight - newHeight) / 2,
-            name: 'editable-shape' // Ensure the shape is selectable
         });
 
         const layer = getActiveLayer();
@@ -40,13 +53,29 @@ function loadTemplateFromURL(url) {
 
         layer.add(image);
         image.draggable(true);
-        setupImageListeners(image); // Use the existing listener setup
+
+        if (imageTransformer) {
+            imageTransformer.nodes([image]);
+        } else {
+            imageTransformer = new Konva.Transformer({
+                nodes: [image],
+                rotateEnabled: true,
+                enabledAnchors: [
+                    "top-left", "top-right",
+                    "bottom-left", "bottom-right"
+                ]
+            });
+            layer.add(imageTransformer);
+        }
+
+        image.on("click", () => {
+            selectedNode = image;
+            imageTransformer.nodes([image]);
+            layer.draw();
+        });
 
         layer.batchDraw(); // Explicitly redraw the layer
         console.log('Image added to layer and layer redrawn.');
-
-        selectShape(image); // Use the unified selection function
-
         hideWelcomeMessage();
         recordState();
         console.log('Template loaded and state recorded.');
@@ -136,10 +165,7 @@ function loadState(isUndo) {
         layer.destroyChildren();
 
         // Re-add the transformer
-        transformer = new Konva.Transformer({
-            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'],
-            keepRatio: false
-        });
+        transformer = new Konva.Transformer();
         layer.add(transformer);
 
         // Move children from temp layer to real layer, and re-setup listeners
@@ -317,33 +343,15 @@ function setupSidebar(shape) {
             textButton.style.display = 'block';
 
             // Text controls update
-            document.getElementById('font-family-select').value = shape.fontFamily() || 'Arial';
-            const fontSize = shape.fontSize() || 18;
+            document.getElementById('font-family-select').value = shape.fontFamily();
+            const fontSize = shape.fontSize();
             document.getElementById('font-size-slider').value = fontSize;
             document.getElementById('font-size-value').textContent = `${fontSize}px`;
 
             const textColor = shape.fill() || '#ffffff';
             document.getElementById('color-picker').value = textColor;
             document.getElementById('color-hex-input').value = textColor;
-
-            const lineHeight = shape.lineHeight() || 1.5;
-            document.getElementById('line-height-slider').value = lineHeight;
-            document.getElementById('line-height-value').textContent = lineHeight;
-
-            const letterSpacing = shape.letterSpacing() || 0;
-            document.getElementById('letter-spacing-slider').value = letterSpacing;
-            document.getElementById('letter-spacing-value').textContent = letterSpacing;
-
-            const strokeColor = shape.stroke() || '#000000';
-            document.getElementById('stroke-color-picker').value = strokeColor;
-            document.getElementById('stroke-color-hex').value = strokeColor;
-
-            const strokeWidth = shape.strokeWidth() || 0;
-            document.getElementById('stroke-width-slider').value = strokeWidth;
-            document.getElementById('stroke-width-value').textContent = strokeWidth;
         }
-        defaultTabId = 'text-props';
-        defaultButton = textButton;
     }
 
     // 3. Set Active Tab and Content (This fixes the overlap)
@@ -442,11 +450,6 @@ function startTextEdit(textNode) {
     textarea.style.fontFamily = textNode.fontFamily();
     textarea.style.color = textNode.fill();
     textarea.style.lineHeight = textNode.lineHeight();
-    textarea.style.fontStyle = textNode.fontStyle();
-    textarea.style.fontWeight = textNode.fontStyle().includes('bold') ? 'bold' : 'normal';
-    textarea.style.textDecoration = textNode.textDecoration();
-    textarea.style.letterSpacing = `${textNode.letterSpacing()}px`;
-    textarea.style.textAlign = textNode.align();
     textarea.style.padding = '0px';
     textarea.style.margin = '0px';
     textarea.style.overflow = 'hidden';
@@ -684,10 +687,10 @@ function increaseFontSize() {
 
 function deleteSelectedShape() {
     if (selectedShape) {
-        transformer.nodes([]); // Detach transformer
+        transformer.nodes([]);
         selectedShape.destroy();
         selectedShape = null;
-        deselectShape(); // Visually deselect and reset UI
+        document.getElementById('floating-toolbar').classList.remove('active');
         layer.batchDraw();
     }
 }
@@ -965,10 +968,7 @@ function initEditor() {
         layer = new Konva.Layer();
         stage.add(layer);
 
-        transformer = new Konva.Transformer({
-            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'],
-            keepRatio: false
-        });
+        transformer = new Konva.Transformer();
         layer.add(transformer);
 
         addTextToCanvas('Welcome to Twin Clouds Editor!', 30, '#FFFFFF', 30, 100);
@@ -1127,98 +1127,6 @@ function initEditor() {
                     saveState();
                 }
             });
-        }
-
-        // --- Text Styling Toolbar ---
-        const alignLeft = document.getElementById('align-left');
-        if (alignLeft) alignLeft.addEventListener('click', () => {
-            if (selectedShape && selectedShape.getClassName() === 'Text') {
-                selectedShape.align('left');
-                layer.batchDraw();
-                saveState();
-            }
-        });
-        const alignCenter = document.getElementById('align-center');
-        if (alignCenter) alignCenter.addEventListener('click', () => {
-            if (selectedShape && selectedShape.getClassName() === 'Text') {
-                selectedShape.align('center');
-                layer.batchDraw();
-                saveState();
-            }
-        });
-        const alignRight = document.getElementById('align-right');
-        if (alignRight) alignRight.addEventListener('click', () => {
-            if (selectedShape && selectedShape.getClassName() === 'Text') {
-                selectedShape.align('right');
-                layer.batchDraw();
-                saveState();
-            }
-        });
-
-        const fontWeightBold = document.getElementById('font-weight-bold');
-        if (fontWeightBold) fontWeightBold.addEventListener('click', toggleTextBold);
-
-        const fontStyleItalic = document.getElementById('font-style-italic');
-        if (fontStyleItalic) fontStyleItalic.addEventListener('click', toggleTextItalic);
-
-        const fontSizeSlider = document.getElementById('font-size-slider');
-        if (fontSizeSlider) {
-            fontSizeSlider.addEventListener('input', function() {
-                if (selectedShape && selectedShape.getClassName() === 'Text') {
-                    selectedShape.fontSize(parseInt(this.value, 10));
-                    document.getElementById('font-size-value').textContent = `${this.value}px`;
-                    layer.batchDraw();
-                }
-            });
-            fontSizeSlider.addEventListener('change', saveState);
-        }
-
-        const lineHeightSlider = document.getElementById('line-height-slider');
-        if (lineHeightSlider) {
-            lineHeightSlider.addEventListener('input', function() {
-                if (selectedShape && selectedShape.getClassName() === 'Text') {
-                    selectedShape.lineHeight(parseFloat(this.value));
-                    document.getElementById('line-height-value').textContent = this.value;
-                    layer.batchDraw();
-                }
-            });
-            lineHeightSlider.addEventListener('change', saveState);
-        }
-
-        const letterSpacingSlider = document.getElementById('letter-spacing-slider');
-        if (letterSpacingSlider) {
-            letterSpacingSlider.addEventListener('input', function() {
-                if (selectedShape && selectedShape.getClassName() === 'Text') {
-                    selectedShape.letterSpacing(parseInt(this.value, 10));
-                    document.getElementById('letter-spacing-value').textContent = this.value;
-                    layer.batchDraw();
-                }
-            });
-            letterSpacingSlider.addEventListener('change', saveState);
-        }
-
-        const strokeColorPicker = document.getElementById('stroke-color-picker');
-        if (strokeColorPicker) {
-            strokeColorPicker.addEventListener('input', function() {
-                if (selectedShape && selectedShape.getClassName() === 'Text') {
-                    selectedShape.stroke(this.value);
-                    document.getElementById('stroke-color-hex').value = this.value;
-                    layer.batchDraw();
-                }
-            });
-            strokeColorPicker.addEventListener('change', saveState);
-        }
-
-        const strokeWidthSlider = document.getElementById('stroke-width-slider');
-        if (strokeWidthSlider) {
-            strokeWidthSlider.addEventListener('input', function() {
-                if (selectedShape && selectedShape.getClassName() === 'Text') {
-                    selectedShape.strokeWidth(parseInt(this.value, 10));
-                    document.getElementById('stroke-width-value').textContent = this.value;
-                    layer.batchDraw();
-                }
-            });
-            strokeWidthSlider.addEventListener('change', saveState);
         }
 
         // --- Floating Toolbar Logic ---
