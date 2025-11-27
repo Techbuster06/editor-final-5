@@ -136,21 +136,6 @@
                         <label>Shadow Offset Y</label>
                         <input type="range" id="shadow-offset-y" min="-25" max="25" value="5">
                     </div>
-                     <!-- STROKE (MOVED HERE) -->
-                    <div class="property-group">
-                        <label for="stroke-color-hex">Stroke Color</label>
-                        <div class="color-input-group">
-                            <input type="color" id="stroke-color-picker" class="styled-color-picker" value="#000000">
-                            <input type="text" id="stroke-color-hex" class="styled-input" value="#000000" maxlength="7">
-                        </div>
-                    </div>
-                    <div class="property-group">
-                        <label>Stroke Width</label>
-                        <div class="slider-with-value">
-                            <input type="range" id="stroke-width-slider" min="0" max="10" value="0" class="styled-range">
-                            <span id="stroke-width-value">0</span>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="right-tab-content" id="text-props">
@@ -186,15 +171,10 @@
                         </div>
                     </div>
                     <!-- ALIGNMENT & STYLE -->
-                    <div class="property-group">
-                        <label>Alignment</label>
-                        <select id="text-align-select" class="styled-select">
-                            <option value="left">Left</option>
-                            <option value="center">Center</option>
-                            <option value="right">Right</option>
-                        </select>
-                    </div>
                     <div class="property-group button-group">
+                        <button id="align-left" class="btn-toggle"><i class="fas fa-align-left"></i></button>
+                        <button id="align-center" class="btn-toggle"><i class="fas fa-align-center"></i></button>
+                        <button id="align-right" class="btn-toggle"><i class="fas fa-align-right"></i></button>
                         <button id="font-weight-bold" class="btn-toggle"><i class="fas fa-bold"></i></button>
                         <button id="font-style-italic" class="btn-toggle"><i class="fas fa-italic"></i></button>
                     </div>
@@ -212,6 +192,21 @@
                         <div class="slider-with-value">
                             <input type="range" id="letter-spacing-slider" min="-10" max="20" value="0" class="styled-range">
                             <span id="letter-spacing-value">0</span>
+                        </div>
+                    </div>
+                    <!-- STROKE -->
+                    <div class="property-group">
+                        <label for="stroke-color-hex">Stroke Color</label>
+                        <div class="color-input-group">
+                            <input type="color" id="stroke-color-picker" class="styled-color-picker" value="#000000">
+                            <input type="text" id="stroke-color-hex" class="styled-input" value="#000000" maxlength="7">
+                        </div>
+                    </div>
+                    <div class="property-group">
+                        <label>Stroke Width</label>
+                        <div class="slider-with-value">
+                            <input type="range" id="stroke-width-slider" min="0" max="10" value="0" class="styled-range">
+                            <span id="stroke-width-value">0</span>
                         </div>
                     </div>
                 </div>
