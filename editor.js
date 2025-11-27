@@ -1,13 +1,3 @@
-let selectedNode = null;
-
-document.addEventListener("keydown", function(e) {
-    if ((e.key === "Delete" || e.key === "Backspace") && selectedNode) {
-        selectedNode.destroy();
-        selectedNode = null;
-        layer.draw();
-    }
-});
-
 // --- Jules injected template loader ------------------------------------------------
 function loadTemplateFromURL(url) {
     console.log(`Loading template from: ${url}`);
@@ -38,6 +28,7 @@ function loadTemplateFromURL(url) {
             height: newHeight,
             x: (maxWidth - newWidth) / 2,
             y: (maxHeight - newHeight) / 2,
+            name: 'editable-shape' // Ensure the shape is selectable
         });
 
         const layer = getActiveLayer();
@@ -49,26 +40,13 @@ function loadTemplateFromURL(url) {
 
         layer.add(image);
         image.draggable(true);
-
-        const tr = new Konva.Transformer({
-            nodes: [image],
-            rotateEnabled: true,
-            enabledAnchors: [
-                "top-left", "top-right",
-                "bottom-left", "bottom-right"
-            ]
-        });
-
-        layer.add(tr);
-
-        image.on("click", () => {
-            selectedNode = image;
-            tr.nodes([image]);
-            layer.draw();
-        });
+        setupImageListeners(image); // Use the existing listener setup
 
         layer.batchDraw(); // Explicitly redraw the layer
         console.log('Image added to layer and layer redrawn.');
+
+        selectShape(image); // Use the unified selection function
+
         hideWelcomeMessage();
         recordState();
         console.log('Template loaded and state recorded.');
@@ -158,7 +136,10 @@ function loadState(isUndo) {
         layer.destroyChildren();
 
         // Re-add the transformer
-        transformer = new Konva.Transformer();
+        transformer = new Konva.Transformer({
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'],
+            keepRatio: false
+        });
         layer.add(transformer);
 
         // Move children from temp layer to real layer, and re-setup listeners
@@ -336,15 +317,33 @@ function setupSidebar(shape) {
             textButton.style.display = 'block';
 
             // Text controls update
-            document.getElementById('font-family-select').value = shape.fontFamily();
-            const fontSize = shape.fontSize();
+            document.getElementById('font-family-select').value = shape.fontFamily() || 'Arial';
+            const fontSize = shape.fontSize() || 18;
             document.getElementById('font-size-slider').value = fontSize;
             document.getElementById('font-size-value').textContent = `${fontSize}px`;
 
             const textColor = shape.fill() || '#ffffff';
             document.getElementById('color-picker').value = textColor;
             document.getElementById('color-hex-input').value = textColor;
+
+            const lineHeight = shape.lineHeight() || 1.5;
+            document.getElementById('line-height-slider').value = lineHeight;
+            document.getElementById('line-height-value').textContent = lineHeight;
+
+            const letterSpacing = shape.letterSpacing() || 0;
+            document.getElementById('letter-spacing-slider').value = letterSpacing;
+            document.getElementById('letter-spacing-value').textContent = letterSpacing;
+
+            const strokeColor = shape.stroke() || '#000000';
+            document.getElementById('stroke-color-picker').value = strokeColor;
+            document.getElementById('stroke-color-hex').value = strokeColor;
+
+            const strokeWidth = shape.strokeWidth() || 0;
+            document.getElementById('stroke-width-slider').value = strokeWidth;
+            document.getElementById('stroke-width-value').textContent = strokeWidth;
         }
+        defaultTabId = 'text-props';
+        defaultButton = textButton;
     }
 
     // 3. Set Active Tab and Content (This fixes the overlap)
@@ -443,6 +442,11 @@ function startTextEdit(textNode) {
     textarea.style.fontFamily = textNode.fontFamily();
     textarea.style.color = textNode.fill();
     textarea.style.lineHeight = textNode.lineHeight();
+    textarea.style.fontStyle = textNode.fontStyle();
+    textarea.style.fontWeight = textNode.fontStyle().includes('bold') ? 'bold' : 'normal';
+    textarea.style.textDecoration = textNode.textDecoration();
+    textarea.style.letterSpacing = `${textNode.letterSpacing()}px`;
+    textarea.style.textAlign = textNode.align();
     textarea.style.padding = '0px';
     textarea.style.margin = '0px';
     textarea.style.overflow = 'hidden';
@@ -680,10 +684,10 @@ function increaseFontSize() {
 
 function deleteSelectedShape() {
     if (selectedShape) {
-        transformer.nodes([]);
+        transformer.nodes([]); // Detach transformer
         selectedShape.destroy();
         selectedShape = null;
-        document.getElementById('floating-toolbar').classList.remove('active');
+        deselectShape(); // Visually deselect and reset UI
         layer.batchDraw();
     }
 }
@@ -961,7 +965,10 @@ function initEditor() {
         layer = new Konva.Layer();
         stage.add(layer);
 
-        transformer = new Konva.Transformer();
+        transformer = new Konva.Transformer({
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'],
+            keepRatio: false
+        });
         layer.add(transformer);
 
         addTextToCanvas('Welcome to Twin Clouds Editor!', 30, '#FFFFFF', 30, 100);
@@ -999,11 +1006,6 @@ function initEditor() {
     // --- Core Initialization ---
     initKonva(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     setupEventListeners();
-    // 💡 ADD THE NEW TEMPLATES INITIALIZATION HERE 💡
-    if (typeof TemplatesSidebar !== 'undefined' && typeof TemplatesSidebar.initTemplatesSidebar === 'function') {
-        TemplatesSidebar.initTemplatesSidebar();
-    }
-    // 💡 END OF NEW CALL 💡
 
     // =========================================================
     // 2. 🎨 Event Listeners Setup
@@ -1125,6 +1127,98 @@ function initEditor() {
                     saveState();
                 }
             });
+        }
+
+        // --- Text Styling Toolbar ---
+        const alignLeft = document.getElementById('align-left');
+        if (alignLeft) alignLeft.addEventListener('click', () => {
+            if (selectedShape && selectedShape.getClassName() === 'Text') {
+                selectedShape.align('left');
+                layer.batchDraw();
+                saveState();
+            }
+        });
+        const alignCenter = document.getElementById('align-center');
+        if (alignCenter) alignCenter.addEventListener('click', () => {
+            if (selectedShape && selectedShape.getClassName() === 'Text') {
+                selectedShape.align('center');
+                layer.batchDraw();
+                saveState();
+            }
+        });
+        const alignRight = document.getElementById('align-right');
+        if (alignRight) alignRight.addEventListener('click', () => {
+            if (selectedShape && selectedShape.getClassName() === 'Text') {
+                selectedShape.align('right');
+                layer.batchDraw();
+                saveState();
+            }
+        });
+
+        const fontWeightBold = document.getElementById('font-weight-bold');
+        if (fontWeightBold) fontWeightBold.addEventListener('click', toggleTextBold);
+
+        const fontStyleItalic = document.getElementById('font-style-italic');
+        if (fontStyleItalic) fontStyleItalic.addEventListener('click', toggleTextItalic);
+
+        const fontSizeSlider = document.getElementById('font-size-slider');
+        if (fontSizeSlider) {
+            fontSizeSlider.addEventListener('input', function() {
+                if (selectedShape && selectedShape.getClassName() === 'Text') {
+                    selectedShape.fontSize(parseInt(this.value, 10));
+                    document.getElementById('font-size-value').textContent = `${this.value}px`;
+                    layer.batchDraw();
+                }
+            });
+            fontSizeSlider.addEventListener('change', saveState);
+        }
+
+        const lineHeightSlider = document.getElementById('line-height-slider');
+        if (lineHeightSlider) {
+            lineHeightSlider.addEventListener('input', function() {
+                if (selectedShape && selectedShape.getClassName() === 'Text') {
+                    selectedShape.lineHeight(parseFloat(this.value));
+                    document.getElementById('line-height-value').textContent = this.value;
+                    layer.batchDraw();
+                }
+            });
+            lineHeightSlider.addEventListener('change', saveState);
+        }
+
+        const letterSpacingSlider = document.getElementById('letter-spacing-slider');
+        if (letterSpacingSlider) {
+            letterSpacingSlider.addEventListener('input', function() {
+                if (selectedShape && selectedShape.getClassName() === 'Text') {
+                    selectedShape.letterSpacing(parseInt(this.value, 10));
+                    document.getElementById('letter-spacing-value').textContent = this.value;
+                    layer.batchDraw();
+                }
+            });
+            letterSpacingSlider.addEventListener('change', saveState);
+        }
+
+        const strokeColorPicker = document.getElementById('stroke-color-picker');
+        if (strokeColorPicker) {
+            strokeColorPicker.addEventListener('input', function() {
+                if (selectedShape && selectedShape.getClassName() === 'Text') {
+                    selectedShape.stroke(this.value);
+                    document.getElementById('stroke-color-hex').value = this.value;
+                    layer.batchDraw();
+                }
+            });
+            strokeColorPicker.addEventListener('change', saveState);
+        }
+
+        const strokeWidthSlider = document.getElementById('stroke-width-slider');
+        if (strokeWidthSlider) {
+            strokeWidthSlider.addEventListener('input', function() {
+                if (selectedShape && selectedShape.getClassName() === 'Text') {
+                    selectedShape.strokeWidth(parseInt(this.value, 10));
+                    document.getElementById('stroke-width-value').textContent = this.value;
+                    layer.batchDraw();
+                }
+            });
+            strokeWidthSlider.addEventListener('change', saveState);
         }
 
         // --- Floating Toolbar Logic ---
@@ -1255,115 +1349,3 @@ function initEditor() {
     } // End of setupEventListeners
 
 } // End of initEditor
-
-const TemplatesSidebar = (function () {
-  const basePath = 'assets/templates/';
-
-  // FIXED: Standardized filenames
-  const carouselFiles = [
-    'carousel1.png',
-    'carousel2.png',
-    'carousel3.png',
-    'carousel4.png'
-  ];
-
-  const carouselMockup = 'carousel_mockup.jpg';
-
-  const generalFiles = [
-    'event_promo_2.jpg',
-    'product_announcement.jpg',
-    'quote_graphic.jpg'
-  ];
-
-  const videoFiles = [
-    'video_ad_bg.jpg'
-  ];
-
-  function mkThumbItem(filename, label) {
-    const btn = document.createElement('button');
-    btn.className = 'template-thumb';
-    btn.type = 'button';
-    btn.setAttribute('aria-label', label || filename);
-    btn.tabIndex = 0;
-
-    const img = document.createElement('img');
-    img.alt = label || filename;
-    img.src = basePath + filename;
-    btn.appendChild(img);
-
-    const lbl = document.createElement('div');
-    lbl.className = 'thumb-label';
-    lbl.textContent = label || filename;
-    btn.appendChild(lbl);
-
-    const dispatchApplyEvent = () => {
-      document.dispatchEvent(
-        new CustomEvent('template:apply', {
-          detail: { url: basePath + filename }
-        })
-      );
-    };
-
-    btn.addEventListener('click', dispatchApplyEvent);
-
-    btn.addEventListener('keyup', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        dispatchApplyEvent();
-      }
-    });
-
-    return btn;
-  }
-
-  function init() {
-    const container = document.getElementById('templates-section');
-    if (!container) {
-      console.warn(
-        'templates-sidebar: #templates-section not found. Ensure the HTML snippet exists.'
-      );
-      return;
-    }
-
-    // Set carousel main preview (if present)
-    const mainPreview = container.querySelector('.carousel-main-preview');
-    if (mainPreview) {
-      mainPreview.src = basePath + carouselMockup;
-    }
-
-    // Populate carousel
-    const thumbsCarousel = container.querySelector('.thumbnails-carousel');
-    if (thumbsCarousel) {
-      carouselFiles.forEach((f, idx) => {
-        thumbsCarousel.appendChild(mkThumbItem(f, `Carousel ${idx + 1}`));
-      });
-    }
-
-    // Populate general templates
-    const thumbsGeneral = container.querySelector('.thumbnails-general');
-    if (thumbsGeneral) {
-      generalFiles.forEach((f, idx) => {
-        thumbsGeneral.appendChild(mkThumbItem(f, `General ${idx + 1}`));
-      });
-    }
-
-    // Populate video templates
-    const thumbsVideo = container.querySelector('.thumbnails-video');
-    if (thumbsVideo) {
-      videoFiles.forEach((f, idx) => {
-        thumbsVideo.appendChild(mkThumbItem(f, `Video ${idx + 1}`));
-      });
-    }
-
-    // Allow programmatic open
-    document.addEventListener('templates:open', () => {
-      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }
-
-  return {
-    initTemplatesSidebar: init
-  };
-})();
-
-// Initialize the sidebar templates
-TemplatesSidebar.initTemplatesSidebar();
