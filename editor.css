@@ -194,6 +194,13 @@ body {
     border-bottom: 1px solid #2e2e2e;
 }
 
+.property-group h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #05eafa;
+    font-size: 1rem;
+}
+
 .property-group:last-of-type,
 .property-group-toggle:last-of-type {
     border-bottom: none;
@@ -325,7 +332,7 @@ body {
     background-color: #444;
 }
 
-.styled-select {
+.styled-select, .styled-input {
     background-color: #2e2e2e;
     color: #ddd;
     border: 1px solid #444;
@@ -334,6 +341,9 @@ body {
     width: 100%;
     font-size: 0.9rem;
     cursor: pointer;
+}
+
+.styled-select {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -343,10 +353,37 @@ body {
     background-size: 18px;
 }
 
-.styled-select:focus {
+.styled-select:focus, .styled-input:focus {
     outline: none;
     border-color:#05eafa;
 }
+
+.property-group.button-group {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-toggle, .btn-align {
+    flex-grow: 1;
+    background-color: #3a3a3a;
+    color: #ccc;
+    border: 1px solid #555;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-toggle:hover, .btn-align:hover {
+    background-color: #4a4a4a;
+}
+
+.btn-toggle.active, .btn-align.active {
+    background-color: #05eafa;
+    color: #141414;
+    border-color: #05eafa;
+}
+
 
 .property-group-toggle {
     display: flex;
