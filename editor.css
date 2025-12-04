@@ -780,6 +780,7 @@ input:checked + .slider:before {
 .right-sidebar-content-container {
     flex-grow: 1; /* Allows the content to fill the remaining space */
     overflow-y: auto; /* Allows scrolling within the content area */
+    min-height: 0;
 }
 
 .right-tab-content {
