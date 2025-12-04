@@ -87,6 +87,7 @@ function loadTemplateFromURL(url) {
 
         if (imageTransformer) {
             imageTransformer.nodes([image]);
+            imageTransformer.moveToTop();
         } else {
             imageTransformer = new Konva.Transformer({
                 nodes: [image],
@@ -259,6 +260,7 @@ function selectShape(shape) {
 
     selectedNode = shape;
     transformer.nodes([selectedNode]);
+    transformer.moveToTop();
     setupSidebar(selectedNode);
     if (floatingToolbar) floatingToolbar.classList.add('active');
     if (shape) {
